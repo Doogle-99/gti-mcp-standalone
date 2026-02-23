@@ -668,7 +668,7 @@ This standalone version is maintained independently but retains all original lic
 ### Frequently Asked Questions
 
 **Q: Do I need a paid VirusTotal account?**
-A: No, a free VirusTotal account works. Note that free accounts have lower rate limits.
+A: No, a free VirusTotal account works. Note that free accounts have lower rate limits and not all MCP tools and features will work even though they will show as available.
 
 **Q: Can I use this with OpenAI or other LLM providers?**
 A: Yes! This is an MCP server. Any MCP-compatible client can use it, not just Claude.
