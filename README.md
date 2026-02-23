@@ -361,3 +361,178 @@ The script outputs:
 3. **API key handling:** Client applications should never expose VT API keys in frontend code
 4. **Access control:** Consider adding additional authentication layers for production use
 5. **Rate limiting:** VirusTotal enforces rate limits per API key
+
+## Frontend Integration
+
+For developers building custom frontend applications that connect to the deployed Cloud Run service.
+
+### Connection Overview
+
+- **Protocol:** SSE (Server-Sent Events) for events, HTTP POST for JSON-RPC messages
+- **Transport:** `@modelcontextprotocol/sdk/client/sse`
+- **Authentication:** Bearer-style token in `X-Mcp-Authorization` header
+- **API Keys:** Pass `api_key` parameter with each tool call
+
+### Configuration Parameters
+
+1. **Service URL:** Your Cloud Run service URL + `/sse`
+   - Example: `https://gti-remotemcp-server-xyz.a.run.app/sse`
+2. **Auth Token:** The `MCP_AUTH_TOKEN` from deployment output
+3. **VT API Key:** VirusTotal API key (managed client-side, passed per tool call)
+
+### React/TypeScript Example
+
+Complete implementation using the MCP SDK:
+
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+
+// Configuration (use environment variables in production)
+const MCP_SERVER_URL = process.env.REACT_APP_MCP_SERVER_URL || "https://your-service.a.run.app/sse";
+const MCP_AUTH_TOKEN = process.env.REACT_APP_MCP_AUTH_TOKEN || "your-auth-token";
+const VT_API_KEY = process.env.REACT_APP_VT_API_KEY || "your-vt-api-key";
+
+// Create SSE transport with authentication
+const transport = new SSEClientTransport(
+  new URL(MCP_SERVER_URL),
+  {
+    // Headers for SSE connection (GET request)
+    eventSourceInit: {
+      headers: {
+        "X-Mcp-Authorization": MCP_AUTH_TOKEN,
+      }
+    },
+    // Headers for JSON-RPC messages (POST requests)
+    requestInit: {
+      headers: {
+        "X-Mcp-Authorization": MCP_AUTH_TOKEN,
+      }
+    }
+  }
+);
+
+// Create MCP client
+const client = new Client(
+  {
+    name: "gti-frontend-client",
+    version: "1.0.0",
+  },
+  {
+    capabilities: {
+      tools: {},
+      resources: {},
+    },
+  }
+);
+
+// Connect to server
+async function connectToGTI() {
+  try {
+    await client.connect(transport);
+    console.log("✅ Connected to GTI MCP Server");
+    return true;
+  } catch (error) {
+    console.error("❌ Connection failed:", error);
+    return false;
+  }
+}
+
+// Example: Call a tool
+async function checkFileReputation(fileHash: string) {
+  try {
+    const result = await client.callTool({
+      name: "get_file_report",
+      arguments: {
+        hash: fileHash,
+        api_key: VT_API_KEY  // ⚠️ Required: Pass API key with each call
+      }
+    });
+
+    console.log("File report:", result);
+    return result;
+  } catch (error) {
+    console.error("Tool call failed:", error);
+    throw error;
+  }
+}
+
+// Example: Search for threats
+async function searchThreats(query: string) {
+  try {
+    const result = await client.callTool({
+      name: "search_threats",
+      arguments: {
+        query: query,
+        limit: 10,
+        api_key: VT_API_KEY  // ⚠️ Required: Pass API key with each call
+      }
+    });
+
+    console.log("Threat search results:", result);
+    return result;
+  } catch (error) {
+    console.error("Search failed:", error);
+    throw error;
+  }
+}
+
+// Initialize
+connectToGTI().then(success => {
+  if (success) {
+    // Example usage
+    checkFileReputation("44d88612fea8a8f36de82e1278abb02f");
+    searchThreats("APT28");
+  }
+});
+```
+
+### Important: API Key Handling
+
+**Every tool call MUST include the `api_key` parameter:**
+
+```typescript
+const result = await client.callTool({
+  name: "any_gti_tool",
+  arguments: {
+    // ... other tool-specific arguments ...
+    api_key: VT_API_KEY  // ⚠️ Always required
+  }
+});
+```
+
+**Why?** The Cloud Run deployment does not store API keys. This allows:
+- Per-user API quotas
+- Individual access control
+- Secure key management on client side
+
+**Security Best Practices:**
+- Never hardcode API keys in frontend code
+- Use environment variables or secure configuration
+- Consider backend proxy for additional security
+- Implement proper key rotation policies
+
+### CORS Considerations
+
+The server allows cross-origin requests by passing `OPTIONS` requests through authentication middleware. If you encounter CORS issues:
+
+1. Verify your request includes the `X-Mcp-Authorization` header
+2. Check browser console for specific CORS errors
+3. Ensure you're using HTTPS for the Cloud Run URL
+4. Consider adding Starlette's `CORSMiddleware` if strict CORS enforcement is needed
+
+### Troubleshooting
+
+**Connection fails:**
+- Verify service URL is correct (must end with `/sse`)
+- Check `MCP_AUTH_TOKEN` matches deployment output
+- Ensure Cloud Run service is running (`gcloud run services list`)
+
+**Tool calls fail:**
+- Verify `api_key` parameter is included in arguments
+- Check VirusTotal API key is valid
+- Review rate limits on your VirusTotal account
+
+**Authentication errors:**
+- Confirm `X-Mcp-Authorization` header is set correctly
+- Check token hasn't been regenerated during redeployment
