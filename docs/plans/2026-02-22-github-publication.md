@@ -1,0 +1,1250 @@
+# GitHub Publication Preparation Implementation Plan
+
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Goal:** Prepare gti-mcp-standalone repository for public GitHub publication with professional documentation and clean file structure.
+
+**Architecture:** Clean up redundant files, consolidate documentation into a comprehensive README with architecture diagrams, update deployment script to use template placeholders, maintain Google attribution.
+
+**Tech Stack:** Markdown, Mermaid diagrams, Bash scripting, Python packaging (pyproject.toml)
+
+---
+
+## Task 1: Remove Redundant setup.py
+
+**Files:**
+- Delete: `setup.py`
+
+**Step 1: Verify setup.py is redundant**
+
+Run: `cat setup.py`
+Run: `cat pyproject.toml`
+Expected: Both define same package metadata, pyproject.toml is comprehensive
+
+**Step 2: Delete setup.py**
+
+Run: `rm setup.py`
+
+**Step 3: Verify package still works**
+
+Run: `uv pip list | grep gti-mcp || echo "Not installed yet"`
+Expected: Either shows installed package or confirms not installed (both OK)
+
+**Step 4: Commit**
+
+```bash
+git add setup.py
+git commit -m "Remove redundant setup.py in favor of pyproject.toml
+
+Modern Python packaging uses pyproject.toml (PEP 517/518).
+setup.py is no longer needed.
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Task 2: Update Deployment Script with Template Placeholders
+
+**Files:**
+- Modify: `gti-remotemcp-deploy.sh:4-7`
+
+**Step 1: Read current deployment script**
+
+Run: `cat gti-remotemcp-deploy.sh`
+Expected: See hardcoded PROJECT_ID, SERVICE_NAME, REGION
+
+**Step 2: Update configuration section**
+
+Replace lines 4-7 with:
+
+```bash
+# Configuration - Edit these values before running
+# Enter your Google Cloud project ID (find it at: https://console.cloud.google.com)
+PROJECT_ID="your-project-id-here"
+
+# Enter a name for your Cloud Run service
+SERVICE_NAME="gti-remotemcp-server"
+
+# Enter your preferred Google Cloud region (e.g., us-central1, us-east1, europe-west1)
+REGION="us-central1"
+```
+
+**Step 3: Verify script syntax**
+
+Run: `bash -n gti-remotemcp-deploy.sh`
+Expected: No output (syntax OK)
+
+**Step 4: Commit**
+
+```bash
+git add gti-remotemcp-deploy.sh
+git commit -m "Update deployment script with template placeholders
+
+Replace hardcoded values with clear comment-based placeholders.
+Users can now easily customize PROJECT_ID, SERVICE_NAME, and REGION.
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Task 3: Create Architecture Diagrams
+
+**Files:**
+- Create: `docs/architecture-diagrams.md` (temporary file for diagram development)
+
+**Step 1: Create component overview diagram**
+
+Create Mermaid C4 component diagram:
+
+```mermaid
+graph TB
+    subgraph "MCP Clients"
+        A1[Claude Desktop]
+        A2[Cline]
+        A3[Cursor]
+        A4[Custom Frontend]
+    end
+
+    subgraph "Transport Layer"
+        B1[stdio - Local]
+        B2[SSE/HTTP - Remote]
+    end
+
+    subgraph "GTI MCP Server"
+        C1[MCP Tools]
+        C2[VT API Client]
+    end
+
+    D[VirusTotal/GTI API]
+
+    A1 --> B1
+    A2 --> B1
+    A3 --> B1
+    A4 --> B2
+
+    B1 --> C1
+    B2 --> C1
+
+    C1 --> C2
+    C2 --> D
+
+    style C1 fill:#e1f5ff
+    style C2 fill:#e1f5ff
+```
+
+**Step 2: Create local deployment flow diagram**
+
+Create Mermaid sequence diagram:
+
+```mermaid
+sequenceDiagram
+    participant Client as MCP Client
+    participant Server as GTI MCP Server
+    participant Env as Environment
+    participant VT as VirusTotal API
+
+    Client->>Server: Launch via stdio
+    Server->>Env: Read VT_APIKEY
+    Env-->>Server: API Key
+    Client->>Server: Call tool (e.g., get_file_report)
+    Server->>VT: API Request with VT_APIKEY
+    VT-->>Server: Response
+    Server-->>Client: Tool Result
+```
+
+**Step 3: Create cloud deployment flow diagram**
+
+Create Mermaid sequence diagram:
+
+```mermaid
+sequenceDiagram
+    participant Frontend as Frontend Client
+    participant CloudRun as Cloud Run (SSE)
+    participant Auth as Auth Middleware
+    participant Server as GTI MCP Server
+    participant VT as VirusTotal API
+
+    Frontend->>CloudRun: Connect to /sse endpoint
+    CloudRun->>Auth: Validate X-Mcp-Authorization header
+    Auth-->>CloudRun: Authorized
+    CloudRun-->>Frontend: SSE Connection Established
+
+    Frontend->>CloudRun: Call tool with api_key parameter
+    CloudRun->>Server: Execute tool
+    Server->>VT: API Request with client-provided api_key
+    VT-->>Server: Response
+    Server-->>CloudRun: Tool Result
+    CloudRun-->>Frontend: SSE Event with Result
+```
+
+**Step 4: Test diagrams render correctly**
+
+Test Mermaid syntax: Copy each diagram to https://mermaid.live
+Expected: All three diagrams render without errors
+
+**Step 5: Commit diagrams (temporary file)**
+
+```bash
+git add docs/architecture-diagrams.md
+git commit -m "Add architecture diagrams for README
+
+Three Mermaid diagrams:
+- Component overview showing clients, transports, server, API
+- Local deployment flow with environment variable API key
+- Cloud deployment flow with per-call API key
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Task 4: Write New README - Part 1 (Header, Overview, Architecture)
+
+**Files:**
+- Modify: `README.md:1-300` (complete rewrite)
+
+**Step 1: Write header and overview**
+
+```markdown
+# Google Threat Intelligence MCP Server (Standalone)
+
+This is a standalone MCP (Model Context Protocol) server for interacting with Google's Threat Intelligence suite. It provides AI assistants like Claude with access to comprehensive threat intelligence capabilities through both **local development** and **production cloud deployment** modes.
+
+**Key Capabilities:**
+- 🔍 Threat intelligence search (campaigns, threat actors, malware families)
+- 📁 File analysis and behavior reports
+- 🌐 Domain, IP, and URL reputation checking
+- 🎯 IOC (Indicator of Compromise) search
+- 📊 Threat profiles and hunting rulesets
+
+[Learn more about MCP](https://modelcontextprotocol.io/introduction)
+
+## Architecture
+
+Understanding how GTI MCP Server works in different deployment modes:
+
+### Component Overview
+
+```mermaid
+graph TB
+    subgraph "MCP Clients"
+        A1[Claude Desktop]
+        A2[Cline]
+        A3[Cursor]
+        A4[Custom Frontend]
+    end
+
+    subgraph "Transport Layer"
+        B1[stdio - Local]
+        B2[SSE/HTTP - Remote]
+    end
+
+    subgraph "GTI MCP Server"
+        C1[MCP Tools]
+        C2[VT API Client]
+    end
+
+    D[VirusTotal/GTI API]
+
+    A1 --> B1
+    A2 --> B1
+    A3 --> B1
+    A4 --> B2
+
+    B1 --> C1
+    B2 --> C1
+
+    C1 --> C2
+    C2 --> D
+
+    style C1 fill:#e1f5ff
+    style C2 fill:#e1f5ff
+```
+
+### Local Deployment Flow
+
+For individual developers running the MCP server locally:
+
+```mermaid
+sequenceDiagram
+    participant Client as MCP Client
+    participant Server as GTI MCP Server
+    participant Env as Environment
+    participant VT as VirusTotal API
+
+    Client->>Server: Launch via stdio
+    Server->>Env: Read VT_APIKEY
+    Env-->>Server: API Key
+    Client->>Server: Call tool (e.g., get_file_report)
+    Server->>VT: API Request with VT_APIKEY
+    VT-->>Server: Response
+    Server-->>Client: Tool Result
+```
+
+**API Key Management:** Server reads `VT_APIKEY` from environment variables at startup.
+
+### Cloud Deployment Flow
+
+For teams deploying a centralized service:
+
+```mermaid
+sequenceDiagram
+    participant Frontend as Frontend Client
+    participant CloudRun as Cloud Run (SSE)
+    participant Auth as Auth Middleware
+    participant Server as GTI MCP Server
+    participant VT as VirusTotal API
+
+    Frontend->>CloudRun: Connect to /sse endpoint
+    CloudRun->>Auth: Validate X-Mcp-Authorization header
+    Auth-->>CloudRun: Authorized
+    CloudRun-->>Frontend: SSE Connection Established
+
+    Frontend->>CloudRun: Call tool with api_key parameter
+    CloudRun->>Server: Execute tool
+    Server->>VT: API Request with client-provided api_key
+    VT-->>Server: Response
+    Server-->>CloudRun: Tool Result
+    CloudRun-->>Frontend: SSE Event with Result
+```
+
+**API Key Management:** Clients pass `api_key` parameter with each tool call. Server authenticates connection via `MCP_AUTH_TOKEN` but uses client-provided API keys for VirusTotal requests.
+
+**Security Note:** This architecture allows teams to deploy a shared MCP server while maintaining individual user API quotas and access controls.
+```
+
+**Step 2: Verify Mermaid syntax**
+
+Visual check: Ensure all three diagrams are properly formatted
+Expected: Valid Mermaid code blocks with proper indentation
+
+**Step 3: Commit**
+
+```bash
+git add README.md
+git commit -m "Add README header, overview, and architecture section
+
+- Clear project description with key capabilities
+- Three architecture diagrams (component, local, cloud)
+- Explanation of API key handling in both modes
+- Security considerations
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Task 5: Write New README - Part 2 (Features)
+
+**Files:**
+- Modify: `README.md` (append features section)
+
+**Step 1: Add features section**
+
+```markdown
+## Features
+
+### Collections (Threats)
+
+- **`get_collection_report(id)`**: Retrieves a specific collection report by its ID (e.g., `report--<hash>`, `threat-actor--<hash>`).
+- **`get_entities_related_to_a_collection(id, relationship_name, limit=10)`**: Gets related entities (domains, files, IPs, URLs, other collections) for a given collection ID.
+- **`search_threats(query, limit=5, order_by="relevance-")`**: Performs a general search for threats (collections) using GTI query syntax.
+- **`search_campaigns(query, limit=10, order_by="relevance-")`**: Searches specifically for collections of type `campaign`.
+- **`search_threat_actors(query, limit=10, order_by="relevance-")`**: Searches specifically for collections of type `threat-actor`.
+- **`search_malware_families(query, limit=10, order_by="relevance-")`**: Searches specifically for collections of type `malware-family`.
+- **`search_software_toolkits(query, limit=10, order_by="relevance-")`**: Searches specifically for collections of type `software-toolkit`.
+- **`search_threat_reports(query, limit=10, order_by="relevance-")`**: Searches specifically for collections of type `report`.
+- **`search_vulnerabilities(query, limit=10, order_by="relevance-")`**: Searches specifically for collections of type `vulnerability`.
+- **`get_collection_timeline_events(id)`**: Retrieves curated timeline events for a collection.
+
+### Files
+
+- **`get_file_report(hash)`**: Retrieves a comprehensive analysis report for a file based on its MD5, SHA1, or SHA256 hash.
+- **`get_entities_related_to_a_file(hash, relationship_name, limit=10)`**: Gets related entities (domains, IPs, URLs, behaviours, etc.) for a given file hash.
+- **`get_file_behavior_report(file_behaviour_id)`**: Retrieves a specific sandbox behavior report for a file.
+- **`get_file_behavior_summary(hash)`**: Retrieves a summary of all sandbox behavior reports for a file hash.
+
+### Intelligence Search
+
+- **`search_iocs(query, limit=10, order_by="last_submission_date-")`**: Searches for Indicators of Compromise (files, URLs, domains, IPs) using advanced GTI query syntax.
+
+### Network Locations (Domains & IPs)
+
+- **`get_domain_report(domain)`**: Retrieves a comprehensive analysis report for a domain.
+- **`get_entities_related_to_a_domain(domain, relationship_name, limit=10)`**: Gets related entities for a given domain.
+- **`get_ip_address_report(ip_address)`**: Retrieves a comprehensive analysis report for an IPv4 or IPv6 address.
+- **`get_entities_related_to_an_ip_address(ip_address, relationship_name, limit=10)`**: Gets related entities for a given IP address.
+
+### URLs
+
+- **`get_url_report(url)`**: Retrieves a comprehensive analysis report for a URL.
+- **`get_entities_related_to_an_url(url, relationship_name, limit=10)`**: Gets related entities for a given URL.
+
+### Hunting
+
+- **`get_hunting_ruleset`**: Get a Hunting Ruleset object from Google Threat Intelligence.
+- **`get_entities_related_to_a_hunting_ruleset`**: Retrieve entities related to the given Hunting Ruleset.
+
+### Threat Profiles
+
+- **`list_threat_profiles`**: List your Threat Profiles at Google Threat Intelligence.
+- **`get_threat_profile(profile_id)`**: Get Threat Profile object.
+- **`get_threat_profile_recommendations(profile_id, limit=10)`**: Returns the list of objects associated to the given Threat Profile.
+- **`get_threat_profile_associations_timeline(profile_id)`**: Retrieves the associations timeline for the given Threat Profile.
+```
+
+**Step 2: Commit**
+
+```bash
+git add README.md
+git commit -m "Add comprehensive features section to README
+
+Complete listing of all MCP tools organized by capability:
+- Collections/Threats
+- Files
+- Intelligence Search
+- Network Locations
+- URLs
+- Hunting
+- Threat Profiles
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Task 6: Write New README - Part 3 (Local Development)
+
+**Files:**
+- Modify: `README.md` (append local development section)
+
+**Step 1: Add quick start section**
+
+```markdown
+## Quick Start (Local Development)
+
+For developers who want to use GTI MCP Server with Claude Desktop, Cline, Cursor, or other MCP clients.
+
+### Prerequisites
+
+- Python 3.11 or higher
+- [uv](https://docs.astral.sh/uv/) package manager
+- VirusTotal API key ([get one free](https://www.virustotal.com/))
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/gti-mcp-standalone.git
+cd gti-mcp-standalone
+
+# Install with uv (recommended)
+uv tool install -e .
+
+# Or run directly without installation
+uv run gti_mcp
+```
+
+### API Key Setup
+
+Set up the `VT_APIKEY` environment variable:
+
+**macOS/Linux:**
+```bash
+export VT_APIKEY="your-virustotal-api-key"
+```
+
+**Windows PowerShell:**
+```powershell
+$Env:VT_APIKEY = "your-virustotal-api-key"
+```
+
+**Permanent setup (recommended):**
+
+Add the export command to your shell profile (`~/.bashrc`, `~/.zshrc`, or `~/.bash_profile`):
+
+```bash
+echo 'export VT_APIKEY="your-virustotal-api-key"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+### MCP Client Configuration
+
+#### Claude Desktop
+
+Edit `~/.claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "gti": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/absolute/path/to/gti-mcp-standalone",
+        "run",
+        "gti_mcp"
+      ],
+      "env": {
+        "VT_APIKEY": "${VT_APIKEY}"
+      }
+    }
+  }
+}
+```
+
+**Note for macOS users:** If you installed `uv` using the standalone installer, use the full path to the uv binary (e.g., `/Users/yourusername/.local/bin/uv`) instead of just `uv`.
+
+#### Cline
+
+Edit `.cline/mcp.json` or use the settings UI:
+
+```json
+{
+  "mcpServers": {
+    "gti": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/absolute/path/to/gti-mcp-standalone",
+        "run",
+        "gti_mcp"
+      ],
+      "env": {
+        "VT_APIKEY": "${VT_APIKEY}"
+      }
+    }
+  }
+}
+```
+
+#### Cursor
+
+Edit `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "gti": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/absolute/path/to/gti-mcp-standalone",
+        "run",
+        "gti_mcp"
+      ],
+      "env": {
+        "VT_APIKEY": "${VT_APIKEY}"
+      }
+    }
+  }
+}
+```
+
+### Verification
+
+1. Restart your MCP client (Claude Desktop, Cline, or Cursor)
+2. Check that the GTI server appears in the MCP tools list
+3. Try a simple query: "Check the reputation of google.com using GTI"
+
+If everything is working, you should see results from Google Threat Intelligence!
+```
+
+**Step 2: Commit**
+
+```bash
+git add README.md
+git commit -m "Add local development quick start section
+
+Complete setup guide for developers:
+- Prerequisites and installation
+- API key configuration for all platforms
+- MCP client configurations (Claude Desktop, Cline, Cursor)
+- Verification steps
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Task 7: Write New README - Part 4 (Production Deployment)
+
+**Files:**
+- Modify: `README.md` (append production deployment section)
+
+**Step 1: Add production deployment section**
+
+```markdown
+## Production Deployment (Cloud Run)
+
+For teams who want to deploy a centralized GTI MCP service that multiple users or frontend applications can access via SSE (Server-Sent Events).
+
+### Why Cloud Deployment?
+
+- **Centralized service:** One deployment serves multiple users/applications
+- **No local setup:** Users connect via HTTP/SSE without installing Python or dependencies
+- **Team sharing:** Security teams can provide threat intelligence to multiple frontend apps
+- **Scalability:** Cloud Run automatically scales based on demand
+
+### Prerequisites
+
+- Google Cloud Platform account with billing enabled
+- [gcloud CLI](https://cloud.google.com/sdk/docs/install) installed and configured
+- Project with Cloud Run API enabled
+
+### Deployment Steps
+
+#### 1. Clone the Repository
+
+```bash
+git clone https://github.com/yourusername/gti-mcp-standalone.git
+cd gti-mcp-standalone
+```
+
+#### 2. Configure Deployment Script
+
+Edit `gti-remotemcp-deploy.sh` and update the configuration section:
+
+```bash
+# Edit these three values:
+PROJECT_ID="your-gcp-project-id"        # Find at console.cloud.google.com
+SERVICE_NAME="gti-remotemcp-server"     # Name for your Cloud Run service
+REGION="us-central1"                     # Your preferred region
+```
+
+#### 3. Run Deployment
+
+```bash
+chmod +x gti-remotemcp-deploy.sh
+./gti-remotemcp-deploy.sh
+```
+
+The script will:
+- Build the container using Google Cloud Buildpacks
+- Deploy to Cloud Run
+- Output the service URL and authentication token
+
+#### 4. Save Deployment Information
+
+The script outputs:
+- **Service URL:** `https://gti-remotemcp-server-xyz.a.run.app`
+- **SSE Endpoint:** `https://gti-remotemcp-server-xyz.a.run.app/sse`
+- **Auth Token:** A randomly generated token for authentication
+
+**Important:** Save the auth token securely! You'll need it to connect clients.
+
+### Architecture Details
+
+**Transport:** SSE (Server-Sent Events) over HTTP
+
+**Authentication:**
+- **Server access:** `X-Mcp-Authorization` header with `MCP_AUTH_TOKEN`
+- **API calls:** `api_key` parameter passed with each tool invocation
+
+**API Key Strategy:**
+- Server does NOT store VirusTotal API keys
+- Each tool call must include `api_key` parameter
+- Allows per-user API quotas and access control
+- Client applications manage API key distribution
+
+### Security Considerations
+
+1. **Protect the auth token:** Store `MCP_AUTH_TOKEN` securely (environment variables, secrets manager)
+2. **HTTPS only:** Cloud Run enforces HTTPS by default
+3. **API key handling:** Client applications should never expose VT API keys in frontend code
+4. **Access control:** Consider adding additional authentication layers for production use
+5. **Rate limiting:** VirusTotal enforces rate limits per API key
+```
+
+**Step 2: Commit**
+
+```bash
+git add README.md
+git commit -m "Add production deployment section
+
+Cloud Run deployment guide:
+- Use case explanation
+- Prerequisites
+- Step-by-step deployment with script
+- Architecture details (SSE transport, auth)
+- Security considerations
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Task 8: Write New README - Part 5 (Frontend Integration)
+
+**Files:**
+- Modify: `README.md` (append frontend integration section)
+
+**Step 1: Add frontend integration section**
+
+```markdown
+## Frontend Integration
+
+For developers building custom frontend applications that connect to the deployed Cloud Run service.
+
+### Connection Overview
+
+- **Protocol:** SSE (Server-Sent Events) for events, HTTP POST for JSON-RPC messages
+- **Transport:** `@modelcontextprotocol/sdk/client/sse`
+- **Authentication:** Bearer-style token in `X-Mcp-Authorization` header
+- **API Keys:** Pass `api_key` parameter with each tool call
+
+### Configuration Parameters
+
+1. **Service URL:** Your Cloud Run service URL + `/sse`
+   - Example: `https://gti-remotemcp-server-xyz.a.run.app/sse`
+2. **Auth Token:** The `MCP_AUTH_TOKEN` from deployment output
+3. **VT API Key:** VirusTotal API key (managed client-side, passed per tool call)
+
+### React/TypeScript Example
+
+Complete implementation using the MCP SDK:
+
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+
+// Configuration (use environment variables in production)
+const MCP_SERVER_URL = process.env.REACT_APP_MCP_SERVER_URL || "https://your-service.a.run.app/sse";
+const MCP_AUTH_TOKEN = process.env.REACT_APP_MCP_AUTH_TOKEN || "your-auth-token";
+const VT_API_KEY = process.env.REACT_APP_VT_API_KEY || "your-vt-api-key";
+
+// Create SSE transport with authentication
+const transport = new SSEClientTransport(
+  new URL(MCP_SERVER_URL),
+  {
+    // Headers for SSE connection (GET request)
+    eventSourceInit: {
+      headers: {
+        "X-Mcp-Authorization": MCP_AUTH_TOKEN,
+      }
+    },
+    // Headers for JSON-RPC messages (POST requests)
+    requestInit: {
+      headers: {
+        "X-Mcp-Authorization": MCP_AUTH_TOKEN,
+      }
+    }
+  }
+);
+
+// Create MCP client
+const client = new Client(
+  {
+    name: "gti-frontend-client",
+    version: "1.0.0",
+  },
+  {
+    capabilities: {
+      tools: {},
+      resources: {},
+    },
+  }
+);
+
+// Connect to server
+async function connectToGTI() {
+  try {
+    await client.connect(transport);
+    console.log("✅ Connected to GTI MCP Server");
+    return true;
+  } catch (error) {
+    console.error("❌ Connection failed:", error);
+    return false;
+  }
+}
+
+// Example: Call a tool
+async function checkFileReputation(fileHash: string) {
+  try {
+    const result = await client.callTool({
+      name: "get_file_report",
+      arguments: {
+        hash: fileHash,
+        api_key: VT_API_KEY  // ⚠️ Required: Pass API key with each call
+      }
+    });
+
+    console.log("File report:", result);
+    return result;
+  } catch (error) {
+    console.error("Tool call failed:", error);
+    throw error;
+  }
+}
+
+// Example: Search for threats
+async function searchThreats(query: string) {
+  try {
+    const result = await client.callTool({
+      name: "search_threats",
+      arguments: {
+        query: query,
+        limit: 10,
+        api_key: VT_API_KEY  // ⚠️ Required: Pass API key with each call
+      }
+    });
+
+    console.log("Threat search results:", result);
+    return result;
+  } catch (error) {
+    console.error("Search failed:", error);
+    throw error;
+  }
+}
+
+// Initialize
+connectToGTI().then(success => {
+  if (success) {
+    // Example usage
+    checkFileReputation("44d88612fea8a8f36de82e1278abb02f");
+    searchThreats("APT28");
+  }
+});
+```
+
+### Important: API Key Handling
+
+**Every tool call MUST include the `api_key` parameter:**
+
+```typescript
+const result = await client.callTool({
+  name: "any_gti_tool",
+  arguments: {
+    // ... other tool-specific arguments ...
+    api_key: VT_API_KEY  // ⚠️ Always required
+  }
+});
+```
+
+**Why?** The Cloud Run deployment does not store API keys. This allows:
+- Per-user API quotas
+- Individual access control
+- Secure key management on client side
+
+**Security Best Practices:**
+- Never hardcode API keys in frontend code
+- Use environment variables or secure configuration
+- Consider backend proxy for additional security
+- Implement proper key rotation policies
+
+### CORS Considerations
+
+The server allows cross-origin requests by passing `OPTIONS` requests through authentication middleware. If you encounter CORS issues:
+
+1. Verify your request includes the `X-Mcp-Authorization` header
+2. Check browser console for specific CORS errors
+3. Ensure you're using HTTPS for the Cloud Run URL
+4. Consider adding Starlette's `CORSMiddleware` if strict CORS enforcement is needed
+
+### Troubleshooting
+
+**Connection fails:**
+- Verify service URL is correct (must end with `/sse`)
+- Check `MCP_AUTH_TOKEN` matches deployment output
+- Ensure Cloud Run service is running (`gcloud run services list`)
+
+**Tool calls fail:**
+- Verify `api_key` parameter is included in arguments
+- Check VirusTotal API key is valid
+- Review rate limits on your VirusTotal account
+
+**Authentication errors:**
+- Confirm `X-Mcp-Authorization` header is set correctly
+- Check token hasn't been regenerated during redeployment
+```
+
+**Step 2: Commit**
+
+```bash
+git add README.md
+git commit -m "Add frontend integration section
+
+Complete guide for building custom frontends:
+- Connection overview and parameters
+- Full React/TypeScript example with SSEClientTransport
+- API key handling requirements and best practices
+- Security considerations
+- CORS and troubleshooting
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Task 9: Write New README - Part 6 (Development, License, Support)
+
+**Files:**
+- Modify: `README.md` (append final sections)
+
+**Step 1: Add development section**
+
+```markdown
+## Development
+
+### Project Structure
+
+```
+.
+├── gti_mcp/
+│   ├── __init__.py
+│   ├── server.py           # Main MCP server implementation
+│   ├── utils.py            # VirusTotal API utilities
+│   └── tools/              # Tool implementations
+│       ├── __init__.py
+│       ├── collections.py  # Threat collections tools
+│       ├── files.py        # File analysis tools
+│       ├── intelligence.py # IOC search tools
+│       ├── netloc.py       # Domain/IP tools
+│       ├── threat_profiles.py
+│       └── urls.py         # URL analysis tools
+├── tests/                  # Test suite
+│   ├── conftest.py
+│   ├── test_tools.py
+│   ├── test_utils.py
+│   └── test_files_errors.py
+├── pyproject.toml          # Package configuration
+├── Dockerfile              # Cloud Run container
+├── gti-remotemcp-deploy.sh # Deployment script
+└── README.md
+```
+
+### Running Tests
+
+```bash
+# Install test dependencies
+uv pip install -e ".[test]"
+
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=gti_mcp
+
+# Run specific test file
+pytest tests/test_tools.py -v
+
+# Run specific test
+pytest tests/test_tools.py::test_get_file_report -v
+```
+
+### Contributing
+
+To modify or extend this server:
+
+1. **Fork and clone** the repository
+2. **Create a feature branch**: `git checkout -b feature/your-feature`
+3. **Make changes** in `gti_mcp/tools/` following existing patterns
+4. **Add tests** in `tests/` for new functionality
+5. **Run tests** to verify: `pytest`
+6. **Update README** if adding new features or changing APIs
+7. **Commit changes**: Use clear, descriptive commit messages
+8. **Push and create PR** to the original repository
+
+### Adding New Tools
+
+Example pattern for adding a new tool:
+
+```python
+# In gti_mcp/tools/your_category.py
+
+async def your_new_tool(param1: str, api_key: str) -> dict:
+    """
+    Tool description for MCP clients.
+
+    Args:
+        param1: Description of parameter
+        api_key: VirusTotal API key (required for cloud deployment)
+
+    Returns:
+        Tool result as dictionary
+    """
+    import vt
+
+    async with vt.Client(api_key) as client:
+        result = await client.your_operation(param1)
+        return result.to_dict()
+
+# Register in gti_mcp/tools/__init__.py
+```
+
+## License & Attribution
+
+This project is licensed under the **Apache License 2.0** - see the [LICENSE](LICENSE) file for details.
+
+### Original Source
+
+This is a standalone extraction of the Google Threat Intelligence MCP server from the official [mcp-security](https://github.com/google/mcp-security) repository.
+
+**Original Authors:** Google SecOps Team
+**Original Repository:** https://github.com/google/mcp-security
+**Original License:** Apache 2.0
+
+This standalone version is maintained independently but retains all original licensing and attribution.
+
+### Third-Party Libraries
+
+- [mcp](https://github.com/modelcontextprotocol/python-sdk) - Model Context Protocol SDK (MIT License)
+- [vt-py](https://github.com/VirusTotal/vt-py) - VirusTotal Python SDK (Apache 2.0)
+- [Starlette](https://www.starlette.io/) - ASGI framework (BSD License)
+- [uvicorn](https://www.uvicorn.org/) - ASGI server (BSD License)
+
+## Support
+
+### Getting Help
+
+- **Documentation:** This README and [MCP Protocol Docs](https://modelcontextprotocol.io/introduction)
+- **Issues:** Report issues at the [original mcp-security repository](https://github.com/google/mcp-security/issues)
+- **VirusTotal API:** [Official API documentation](https://developers.virustotal.com/reference/overview)
+
+### Frequently Asked Questions
+
+**Q: Do I need a paid VirusTotal account?**
+A: No, a free VirusTotal account works. Note that free accounts have lower rate limits.
+
+**Q: Can I use this with OpenAI or other LLM providers?**
+A: Yes! This is an MCP server. Any MCP-compatible client can use it, not just Claude.
+
+**Q: Is my API key secure in cloud deployment?**
+A: The server never stores API keys. Clients pass them per-call, allowing you to implement your own key management strategy.
+
+**Q: Can I deploy to platforms other than Cloud Run?**
+A: Yes! The included Dockerfile works with any container platform (AWS ECS, Azure Container Instances, etc.). Cloud Run is just the default.
+
+**Q: What's the difference between this and the original mcp-security repo?**
+A: This is a standalone extraction of just the GTI component, making it easier to deploy independently. The original repo contains multiple security tools.
+
+---
+
+**Built with ❤️ using [Model Context Protocol](https://modelcontextprotocol.io/)**
+```
+
+**Step 2: Commit**
+
+```bash
+git add README.md
+git commit -m "Complete README with development, license, and support sections
+
+- Project structure and testing guide
+- Contributing guidelines and tool development pattern
+- Apache 2.0 license with Google attribution
+- Links to original repository
+- FAQ section
+- Third-party library credits
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Task 10: Delete frontend_integration_guide.md
+
+**Files:**
+- Delete: `frontend_integration_guide.md`
+
+**Step 1: Verify content has been migrated**
+
+Run: `grep -n "Frontend Integration" README.md`
+Expected: Shows line numbers where frontend content appears in README
+
+**Step 2: Delete the file**
+
+Run: `rm frontend_integration_guide.md`
+
+**Step 3: Commit**
+
+```bash
+git add frontend_integration_guide.md
+git commit -m "Remove frontend_integration_guide.md
+
+Content has been merged into README's Frontend Integration section.
+Consolidating documentation into single comprehensive README.
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Task 11: Final Verification
+
+**Files:**
+- Verify: All files in repository
+
+**Step 1: Check repository structure**
+
+Run: `ls -la`
+Expected output should include:
+- ✅ `README.md` (updated)
+- ✅ `pyproject.toml`
+- ✅ `Dockerfile`
+- ✅ `.gcloudignore`
+- ✅ `.gitignore`
+- ✅ `LICENSE`
+- ✅ `gti-remotemcp-deploy.sh` (updated)
+- ✅ `gti_mcp/` directory
+- ✅ `tests/` directory
+- ✅ `docs/` directory
+- ❌ `setup.py` (should be deleted)
+- ❌ `frontend_integration_guide.md` (should be deleted)
+
+**Step 2: Verify README Mermaid diagrams**
+
+Run: `grep -c "\`\`\`mermaid" README.md`
+Expected: `3` (three Mermaid diagrams)
+
+**Step 3: Verify deployment script has placeholders**
+
+Run: `grep "your-project-id-here" gti-remotemcp-deploy.sh`
+Expected: Shows the placeholder line
+
+**Step 4: Check git status**
+
+Run: `git status`
+Expected: "working tree clean" or only untracked files from development
+
+**Step 5: Review commit history**
+
+Run: `git log --oneline`
+Expected: All commits from this implementation visible
+
+**Step 6: Verify package metadata is unchanged**
+
+Run: `grep "Google SecOps" pyproject.toml`
+Expected: Shows original Google authors maintained
+
+---
+
+## Task 12: Create Summary Document
+
+**Files:**
+- Create: `docs/PUBLICATION_READY.md`
+
+**Step 1: Create publication checklist**
+
+```markdown
+# GitHub Publication Checklist
+
+**Date:** 2026-02-22
+**Status:** ✅ Ready for Publication
+
+## Changes Completed
+
+### Files Removed
+- ✅ `setup.py` - Redundant with pyproject.toml
+- ✅ `frontend_integration_guide.md` - Merged into README
+
+### Files Updated
+- ✅ `README.md` - Complete rewrite with dual-path structure
+- ✅ `gti-remotemcp-deploy.sh` - Template placeholders
+
+### Files Added
+- ✅ `docs/plans/2026-02-22-github-publication-design.md` - Design document
+- ✅ `docs/plans/2026-02-22-github-publication.md` - Implementation plan
+- ✅ `docs/PUBLICATION_READY.md` - This checklist
+
+## README Sections Verified
+
+- ✅ Header and Overview
+- ✅ Architecture (3 Mermaid diagrams)
+- ✅ Features (comprehensive tool listing)
+- ✅ Quick Start (Local Development)
+- ✅ Production Deployment (Cloud Run)
+- ✅ Frontend Integration (React/TypeScript examples)
+- ✅ Development (tests, contributing)
+- ✅ License & Attribution (Google credit maintained)
+- ✅ Support (FAQ, links)
+
+## Deployment Script Verified
+
+- ✅ Placeholder for PROJECT_ID
+- ✅ Template value for SERVICE_NAME (gti-remotemcp-server)
+- ✅ Example value for REGION (us-central1)
+- ✅ Comment-based instructions
+- ✅ Script syntax valid
+
+## Attribution Verified
+
+- ✅ pyproject.toml credits Google SecOps Team
+- ✅ README links to original mcp-security repo
+- ✅ LICENSE file unchanged (Apache 2.0)
+- ✅ Third-party library credits included
+
+## Next Steps for Publication
+
+1. **Review README on GitHub**
+   - Push to a test branch
+   - Verify Mermaid diagrams render correctly
+   - Check formatting and links
+
+2. **Test Deployment Script**
+   - Follow instructions to edit placeholders
+   - Optionally test deployment (requires GCP account)
+
+3. **Create Release**
+   - Tag version (suggest v0.1.2 matching pyproject.toml)
+   - Write release notes
+   - Publish to GitHub
+
+4. **Optional Enhancements**
+   - Add GitHub topics/tags for discoverability
+   - Add social preview image
+   - Create CONTRIBUTING.md if expecting community contributions
+   - Add GitHub Actions for automated testing
+
+## Quality Checks
+
+- ✅ No hardcoded credentials or secrets
+- ✅ All file paths are relative or use placeholders
+- ✅ Code examples are copy-paste ready
+- ✅ Links to external resources are valid
+- ✅ Project structure is clean and professional
+- ✅ Git history is clean with descriptive commits
+
+---
+
+**Repository is ready for public GitHub publication! 🚀**
+```
+
+**Step 2: Commit**
+
+```bash
+git add docs/PUBLICATION_READY.md
+git commit -m "Add publication readiness checklist
+
+Complete checklist of all changes made:
+- Files removed/updated/added
+- README sections verified
+- Deployment script verified
+- Attribution verified
+- Next steps for GitHub publication
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Completion Criteria
+
+✅ **All tasks completed successfully when:**
+
+1. `setup.py` is deleted
+2. `frontend_integration_guide.md` is deleted
+3. `gti-remotemcp-deploy.sh` has template placeholders
+4. `README.md` contains all new sections with 3 Mermaid diagrams
+5. All changes are committed with clear messages
+6. Repository structure is clean and professional
+7. Google attribution is maintained in all appropriate places
+8. Publication readiness checklist is created
+
+## Execution Notes
+
+- **Test Mermaid diagrams:** Copy to https://mermaid.live to verify syntax
+- **Verify links:** Ensure all external links are valid
+- **Review on GitHub:** Push to test branch to see rendered README
+- **No secrets:** Confirm no hardcoded credentials anywhere
