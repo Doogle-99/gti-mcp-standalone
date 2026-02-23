@@ -281,3 +281,83 @@ Edit `.cursor/mcp.json`:
 3. Try a simple query: "Check the reputation of google.com using GTI"
 
 If everything is working, you should see results from Google Threat Intelligence!
+
+## Production Deployment (Cloud Run)
+
+For teams who want to deploy a centralized GTI MCP service that multiple users or frontend applications can access via SSE (Server-Sent Events).
+
+### Why Cloud Deployment?
+
+- **Centralized service:** One deployment serves multiple users/applications
+- **No local setup:** Users connect via HTTP/SSE without installing Python or dependencies
+- **Team sharing:** Security teams can provide threat intelligence to multiple frontend apps
+- **Scalability:** Cloud Run automatically scales based on demand
+
+### Prerequisites
+
+- Google Cloud Platform account with billing enabled
+- [gcloud CLI](https://cloud.google.com/sdk/docs/install) installed and configured
+- Project with Cloud Run API enabled
+
+### Deployment Steps
+
+#### 1. Clone the Repository
+
+```bash
+git clone https://github.com/yourusername/gti-mcp-standalone.git
+cd gti-mcp-standalone
+```
+
+#### 2. Configure Deployment Script
+
+Edit `gti-remotemcp-deploy.sh` and update the configuration section:
+
+```bash
+# Edit these three values:
+PROJECT_ID="your-gcp-project-id"        # Find at console.cloud.google.com
+SERVICE_NAME="gti-remotemcp-server"     # Name for your Cloud Run service
+REGION="us-central1"                     # Your preferred region
+```
+
+#### 3. Run Deployment
+
+```bash
+chmod +x gti-remotemcp-deploy.sh
+./gti-remotemcp-deploy.sh
+```
+
+The script will:
+- Build the container using Google Cloud Buildpacks
+- Deploy to Cloud Run
+- Output the service URL and authentication token
+
+#### 4. Save Deployment Information
+
+The script outputs:
+- **Service URL:** `https://gti-remotemcp-server-xyz.a.run.app`
+- **SSE Endpoint:** `https://gti-remotemcp-server-xyz.a.run.app/sse`
+- **Auth Token:** A randomly generated token for authentication
+
+**Important:** Save the auth token securely! You'll need it to connect clients.
+
+### Architecture Details
+
+**Transport:** SSE (Server-Sent Events) over HTTP
+
+**Authentication:**
+- **Server access:** `X-Mcp-Authorization` header with `MCP_AUTH_TOKEN`
+- **API calls:** `api_key` parameter passed with each tool invocation
+
+**API Key Strategy:**
+- Server does NOT store VirusTotal API keys
+- Each tool call must include `api_key` parameter
+- Allows per-user API quotas and access control
+- Client applications manage API key distribution
+
+### Security Considerations
+
+1. **Protect the auth token:** Store `MCP_AUTH_TOKEN` securely (environment variables, secrets manager)
+2. **HTTPS only:** Cloud Run enforces HTTPS by default
+3. **API key handling:** Client applications should never expose VT API keys in frontend code
+4. **Access control:** Consider adding additional authentication layers for production use
+5. **Rate limiting:** VirusTotal enforces rate limits per API key
