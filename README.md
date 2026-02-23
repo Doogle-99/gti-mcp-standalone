@@ -168,7 +168,7 @@ For developers who want to use GTI MCP Server with Claude Desktop, Cline, Cursor
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/gti-mcp-standalone.git
+git clone https://github.com/googleSandy/gti-mcp-standalone.git
 cd gti-mcp-standalone
 
 # Install with uv (recommended)
@@ -304,7 +304,7 @@ For teams who want to deploy a centralized GTI MCP service that multiple users o
 #### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/gti-mcp-standalone.git
+git clone https://github.com/googleSandy/gti-mcp-standalone.git
 cd gti-mcp-standalone
 ```
 
