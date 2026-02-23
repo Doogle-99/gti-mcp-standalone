@@ -112,6 +112,14 @@ sequenceDiagram
 
 - **`get_collection_report(id)`**: Retrieves a specific collection report by its ID (e.g., `report--<hash>`, `threat-actor--<hash>`).
 - **`get_entities_related_to_a_collection(id, relationship_name, limit=10)`**: Gets related entities (domains, files, IPs, URLs, other collections) for a given collection ID.
+- **`get_collection_timeline_events(id)`**: Retrieves curated timeline events for a collection.
+- **`get_collection_rules(id)`**: Gets detection rules (YARA and Sigma) associated with a collection.
+- **`get_collection_feature_matches(id)`**: Retrieves feature matches for a collection.
+- **`get_collection_mitre_tree(id)`**: Gets the MITRE ATT&CK framework tree for a collection.
+- **`get_collections_commonalities(ids)`**: Finds commonalities between multiple collections.
+- **`create_collection(name, description)`**: Creates a new threat collection.
+- **`update_collection_attributes(id, attributes)`**: Updates metadata and attributes for a collection.
+- **`update_iocs_in_collection(id, iocs)`**: Updates indicators of compromise in a collection.
 - **`search_threats(query, limit=5, order_by="relevance-")`**: Performs a general search for threats (collections) using GTI query syntax.
 - **`search_campaigns(query, limit=10, order_by="relevance-")`**: Searches specifically for collections of type `campaign`.
 - **`search_threat_actors(query, limit=10, order_by="relevance-")`**: Searches specifically for collections of type `threat-actor`.
@@ -119,7 +127,6 @@ sequenceDiagram
 - **`search_software_toolkits(query, limit=10, order_by="relevance-")`**: Searches specifically for collections of type `software-toolkit`.
 - **`search_threat_reports(query, limit=10, order_by="relevance-")`**: Searches specifically for collections of type `report`.
 - **`search_vulnerabilities(query, limit=10, order_by="relevance-")`**: Searches specifically for collections of type `vulnerability`.
-- **`get_collection_timeline_events(id)`**: Retrieves curated timeline events for a collection.
 
 ### Files
 
@@ -127,10 +134,12 @@ sequenceDiagram
 - **`get_entities_related_to_a_file(hash, relationship_name, limit=10)`**: Gets related entities (domains, IPs, URLs, behaviours, etc.) for a given file hash.
 - **`get_file_behavior_report(file_behaviour_id)`**: Retrieves a specific sandbox behavior report for a file.
 - **`get_file_behavior_summary(hash)`**: Retrieves a summary of all sandbox behavior reports for a file hash.
+- **`analyse_file(file_path)`**: Uploads and analyzes a file, returning a comprehensive threat intelligence report.
 
 ### Intelligence Search
 
 - **`search_iocs(query, limit=10, order_by="last_submission_date-")`**: Searches for Indicators of Compromise (files, URLs, domains, IPs) using advanced GTI query syntax.
+- **`search_digital_threat_monitoring(query, limit=10)`**: Searches digital threat monitoring data for brand protection, phishing, and impersonation threats.
 
 ### Network Locations (Domains & IPs)
 
