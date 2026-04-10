@@ -357,7 +357,7 @@ The script outputs:
 
 **Authentication:**
 - **Server access:** `X-Mcp-Authorization` header with `MCP_AUTH_TOKEN`
-- **API calls:** `api_key` parameter passed with each tool invocation
+- **API calls:** `X-VT-ApiKey` header OR `api_key` parameter passed with tool invocation
 
 **API Key Strategy:**
 - Server does NOT store VirusTotal API keys
@@ -382,7 +382,7 @@ For developers building custom frontend applications that connect to the deploye
 - **Protocol:** SSE (Server-Sent Events) for events, HTTP POST for JSON-RPC messages
 - **Transport:** `@modelcontextprotocol/sdk/client/sse`
 - **Authentication:** Bearer-style token in `X-Mcp-Authorization` header
-- **API Keys:** Pass `api_key` parameter with each tool call
+- **API Keys:** Pass `api_key` parameter with each tool call OR use `X-VT-ApiKey` header
 
 ### Configuration Parameters
 
@@ -412,12 +412,14 @@ const transport = new SSEClientTransport(
     eventSourceInit: {
       headers: {
         "X-Mcp-Authorization": MCP_AUTH_TOKEN,
+        "X-VT-ApiKey": VT_API_KEY, // Optional: Pass API key via header
       }
     },
     // Headers for JSON-RPC messages (POST requests)
     requestInit: {
       headers: {
         "X-Mcp-Authorization": MCP_AUTH_TOKEN,
+        "X-VT-ApiKey": VT_API_KEY, // Optional: Pass API key via header
       }
     }
   }

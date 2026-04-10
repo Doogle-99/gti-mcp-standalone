@@ -18,6 +18,7 @@ from dataclasses import dataclass
 
 import logging
 import os
+from contextvars import ContextVar
 import vt
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
@@ -36,9 +37,15 @@ stateless = False
 if os.getenv("STATELESS") == "1":
   stateless = True
 
+# Context variable to store VT API key from request headers
+vt_api_key_ctx: ContextVar[str | None] = ContextVar("vt_api_key", default=None)
+
 
 def _vt_client_factory(ctx: Context, api_key: str = None) -> vt.Client:
     # Prioritize the passed argument
+    if not api_key:
+        api_key = vt_api_key_ctx.get()
+
     if not api_key:
         api_key = os.getenv("VT_APIKEY")
     
@@ -102,6 +109,11 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
              
         if token != auth_token:
             return JSONResponse({"error": "Invalid token"}, status_code=403)
+
+        # Extract VT API key if present in headers
+        vt_api_key = request.headers.get("X-VT-ApiKey")
+        if vt_api_key:
+            vt_api_key_ctx.set(vt_api_key)
 
         return await call_next(request)
 
