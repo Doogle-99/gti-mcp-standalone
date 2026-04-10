@@ -3,19 +3,18 @@ set -e
 
 # Configuration - Edit these values before running
 # Enter your Google Cloud project ID (find it at: https://console.cloud.google.com)
-PROJECT_ID="project-ID"
+PROJECT_ID="secops-lab-dg"
 
 # Enter a name for your Cloud Run service
-SERVICE_NAME="gti-mcp-server"
+SERVICE_NAME="dg-gti-mcp-server"
 
 # Enter your preferred Google Cloud region (e.g., us-central1, us-east1, europe-west1)
 REGION="europe-west2"
 
 # NOTE: Replace these with your actual secrets or set them in your environment before running
 # You can also use Google Secret Manager references in Cloud Run for better security.
-# Generate a random token if not provided
-#AUTH_TOKEN=${MCP_AUTH_TOKEN:-$(openssl rand -hex 32)}
-AUTH_TOKEN=${MCP_AUTH_TOKEN:-$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')}
+# Use the existing stable token
+AUTH_TOKEN="2744fb8839e5f20e9bcaebf76f83c9d145267c7db9744aa158a02547b867ae8a"
 # VT_KEY is now passed via tool arguments
 # VT_KEY=${VT_APIKEY:-"change-me-to-your-actual-vt-api-key"}
 
