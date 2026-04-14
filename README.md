@@ -89,13 +89,13 @@ sequenceDiagram
     participant Server as GTI MCP Server
     participant VT as VirusTotal API
 
-    Frontend->>CloudRun: Connect to /sse endpoint
-    CloudRun->>Auth: Validate X-Mcp-Authorization header
+    Frontend->>CloudRun: Connect to /sse endpoint with Auth headers
+    CloudRun->>Auth: Validate X-Mcp-Authorization and X-VT-ApiKey headers
     Auth-->>CloudRun: Authorized
     CloudRun-->>Frontend: SSE Connection Established
 
-    Frontend->>CloudRun: Call tool with api_key parameter
-    CloudRun->>Server: Execute tool
+    Frontend->>CloudRun: Call tool
+    CloudRun->>Server: Execute tool using X-VT-ApiKey header
     Server->>VT: API Request with client-provided api_key
     VT-->>Server: Response
     Server-->>CloudRun: Tool Result
