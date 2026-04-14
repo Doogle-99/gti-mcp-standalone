@@ -319,16 +319,19 @@ git clone https://github.com/googleSandy/gti-mcp-standalone.git
 cd gti-mcp-standalone
 ```
 
-#### 2. Configure Deployment Script
+#### 2. Configure Environment (`.env`)
 
-Edit `gti-remotemcp-deploy.sh` and update the configuration section:
+Copy `.env.example` to `.env` and update the configuration:
 
 ```bash
-# Edit these three values:
-PROJECT_ID="your-gcp-project-id"        # Find at console.cloud.google.com
-SERVICE_NAME="gti-remotemcp-server"     # Name for your Cloud Run service
-REGION="us-central1"                     # Your preferred region
+cp .env.example .env
+# Edit .env with your project details:
+# PROJECT_ID="your-gcp-project-id"
+# SERVICE_NAME="gti-remotemcp-server"
+# REGION="us-central1"
 ```
+
+The deployment script will automatically read these values. If you leave `MCP_AUTH_TOKEN` blank, it will generate a secure random token for you and save it to your `.env` file.
 
 #### 3. Run Deployment
 
@@ -358,6 +361,8 @@ The script outputs:
 **Authentication:**
 - **Server access:** `X-Mcp-Authorization` header with `MCP_AUTH_TOKEN`
 - **API calls:** `X-VT-ApiKey` header OR `api_key` parameter passed with tool invocation
+
+**Note on Organization Policies:** The deployment script uses the `--no-invoker-iam-check` flag. This allows the service to be publicly accessible (protected by your `MCP_AUTH_TOKEN`) even if your Google Cloud organization has restrictive IAM policies that normally block `allUsers`.
 
 **API Key Strategy:**
 - Server does NOT store VirusTotal API keys
