@@ -1,5 +1,7 @@
 # Google Threat Intelligence MCP Server (Standalone)
 
+> **Enhanced Fork**: This version includes advanced security headers (`X-VT-ApiKey`), automated environment-based deployment via `.env`, and optimized Cloud Run compatibility for restrictive organization policies.
+
 This is a standalone MCP (Model Context Protocol) server for interacting with Google's Threat Intelligence suite. It provides AI assistants like Claude with access to comprehensive threat intelligence capabilities through both **local development** and **production cloud deployment** modes.
 
 ![GTI MCP Server Screenshot](images/gti-mcp-screenshot.png)
