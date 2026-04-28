@@ -358,19 +358,25 @@ The script outputs:
 
 ### Architecture Details
 
-**Transport:** SSE (Server-Sent Events) over HTTP
+**Transport:** SSE (Server-Sent Events) over HTTP, and standard HTTP POST JSON-RPC 2.0.
+
+**Endpoint Compliance:**
+- **SSE / Message endpoint:** `/sse` and `/messages` for SSE clients.
+- **Standard HTTP JSON-RPC 2.0 endpoint:** `/` and `/mcp` for standard HTTP-based JSON-RPC tool discovery and execution.
+- **ToolSpec endpoint:** `/toolspec` for Google Cloud Agent Registry compliance.
 
 **Authentication:**
-- **Server access:** `X-Mcp-Authorization` header with `MCP_AUTH_TOKEN`
-- **API calls:** `X-VT-ApiKey` header OR `api_key` parameter passed with tool invocation
+- **Server access:** `X-Mcp-Authorization` header with `MCP_AUTH_TOKEN` or standard `Authorization: Bearer <token>`.
+- **Bypassed routes:** Requests to `GET /toolspec`, `POST /` (`tools/list`), and `POST /` (`resources/list`) are available without authentication to allow the Google Cloud Agent Registry to successfully discover tools.
+- **API calls:** `X-VT-ApiKey` header OR `api_key` parameter passed with tool invocation.
 
 **Note on Organization Policies:** The deployment script uses the `--no-invoker-iam-check` flag. This allows the service to be publicly accessible (protected by your `MCP_AUTH_TOKEN`) even if your Google Cloud organization has restrictive IAM policies that normally block `allUsers`.
 
 **API Key Strategy:**
-- Server does NOT store VirusTotal API keys
-- Each tool call must include `api_key` parameter
-- Allows per-user API quotas and access control
-- Client applications manage API key distribution
+- Server does NOT store VirusTotal API keys.
+- Each tool call must include `api_key` parameter.
+- Allows per-user API quotas and access control.
+- Client applications manage API key distribution.
 
 ### Security Considerations
 
