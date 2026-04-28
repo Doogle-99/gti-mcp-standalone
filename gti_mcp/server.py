@@ -87,6 +87,10 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
         if request.method == "OPTIONS":
             return await call_next(request)
             
+        # Allow unauthenticated access to the toolspec endpoint
+        if request.url.path == "/toolspec":
+            return await call_next(request)
+
         auth_token = os.getenv("MCP_AUTH_TOKEN")
         if not auth_token:
             # If no token configured, fail safe or allow? 
@@ -141,6 +145,17 @@ async def handle_sse(request: Request):
     
     return ASGIResponse(asgi_handler)
 
+async def handle_toolspec(request: Request):
+    mcp_tools = await server.list_tools()
+    toolspec = []
+    for tool in mcp_tools:
+        toolspec.append({
+            "name": tool.name,
+            "description": tool.description,
+            "inputSchema": tool.inputSchema
+        })
+    return JSONResponse(toolspec)
+
 async def handle_messages(request: Request):
     return ASGIResponse(sse.handle_post_message)
 
@@ -151,7 +166,8 @@ middleware = [
 
 routes = [
     Route("/sse", handle_sse),
-    Route("/messages", handle_messages, methods=["POST"])
+    Route("/messages", handle_messages, methods=["POST"]),
+    Route("/toolspec", handle_toolspec, methods=["GET"])
 ]
 
 app = Starlette(debug=True, routes=routes, middleware=middleware)
