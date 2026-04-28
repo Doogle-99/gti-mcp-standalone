@@ -91,6 +91,15 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
         if request.url.path == "/toolspec":
             return await call_next(request)
 
+        # Allow unauthenticated access to the tools/list and resources/list methods for MCP registry
+        if request.method == "POST":
+            try:
+                body = await request.json()
+                if body.get("method") in ("tools/list", "resources/list"):
+                    return await call_next(request)
+            except Exception:
+                pass
+
         auth_token = os.getenv("MCP_AUTH_TOKEN")
         if not auth_token:
             # If no token configured, fail safe or allow? 
@@ -156,6 +165,103 @@ async def handle_toolspec(request: Request):
         })
     return JSONResponse(toolspec)
 
+async def handle_mcp(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({
+            "jsonrpc": "2.0",
+            "id": None,
+            "error": {"code": -32700, "message": "Parse error"}
+        }, status_code=400, media_type="application/json")
+
+    if "jsonrpc" not in body or body["jsonrpc"] != "2.0" or "method" not in body:
+        return JSONResponse({
+            "jsonrpc": "2.0",
+            "id": body.get("id"),
+            "error": {"code": -32600, "message": "Invalid Request"}
+        }, status_code=400, media_type="application/json")
+
+    method = body["method"]
+    rpc_id = body.get("id")
+    params = body.get("params", {})
+
+    logging.info(f"MCP request initialised for method: {method}")
+
+    if method == "tools/list":
+        mcp_tools = await server.list_tools()
+        tools_list = []
+        for tool in mcp_tools:
+            tools_list.append({
+                "name": tool.name,
+                "description": tool.description,
+                "inputSchema": tool.inputSchema
+            })
+        return JSONResponse({
+            "jsonrpc": "2.0",
+            "id": rpc_id,
+            "result": {"tools": tools_list}
+        }, media_type="application/json")
+
+    elif method == "resources/list":
+        return JSONResponse({
+            "jsonrpc": "2.0",
+            "id": rpc_id,
+            "result": {"resources": []}
+        }, media_type="application/json")
+
+    elif method == "tools/call":
+        tool_name = params.get("name")
+        tool_args = params.get("arguments", {})
+
+        if not tool_name:
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "id": rpc_id,
+                "error": {"code": -32602, "message": "Invalid params: 'name' is required"}
+            }, status_code=400, media_type="application/json")
+
+        try:
+            api_key = tool_args.get("api_key")
+            if not api_key:
+                api_key = request.headers.get("X-VT-ApiKey")
+
+            if api_key:
+                vt_api_key_ctx.set(api_key)
+
+            result = await server.call_tool(tool_name, arguments=tool_args)
+            
+            if hasattr(result, "content"):
+                content_list = []
+                for c in result.content:
+                    if hasattr(c, "text"):
+                        content_list.append({"type": "text", "text": c.text})
+                    elif hasattr(c, "data"):
+                        content_list.append({"type": "image", "data": c.data, "mimeType": c.mimeType})
+                call_result = {"content": content_list}
+            else:
+                call_result = {"content": [{"type": "text", "text": str(result)}]}
+
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "id": rpc_id,
+                "result": call_result
+            }, media_type="application/json")
+
+        except Exception as e:
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "id": rpc_id,
+                "error": {"code": -32603, "message": f"Internal error: {str(e)}"}
+            }, status_code=500, media_type="application/json")
+
+    else:
+        return JSONResponse({
+            "jsonrpc": "2.0",
+            "id": rpc_id,
+            "error": {"code": -32601, "message": f"Method not found: {method}"}
+        }, status_code=404, media_type="application/json")
+
 async def handle_messages(request: Request):
     return ASGIResponse(sse.handle_post_message)
 
@@ -167,7 +273,9 @@ middleware = [
 routes = [
     Route("/sse", handle_sse),
     Route("/messages", handle_messages, methods=["POST"]),
-    Route("/toolspec", handle_toolspec, methods=["GET"])
+    Route("/toolspec", handle_toolspec, methods=["GET"]),
+    Route("/", handle_mcp, methods=["POST"]),
+    Route("/mcp", handle_mcp, methods=["POST"])
 ]
 
 app = Starlette(debug=True, routes=routes, middleware=middleware)
